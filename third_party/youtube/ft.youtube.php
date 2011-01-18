@@ -9,16 +9,16 @@ class Youtube_ft extends EE_Fieldtype {
 	
 	function install() {
 		return array(
-			'width'		=> '100',
-			'height'	=> '100'
+			'youtube_width'		=> '100',
+			'youtube_height'	=> '100'
 		);
 	}
 	
 	function display_global_settings() {
 		$val = array_merge($this->settings, $_POST);
-	
-		$form = form_label('width', 'width').NBS.form_input('width', $val['width']).NBS.NBS.NBS.' ';
-		$form .= form_label('height', 'height').NBS.form_input('height', $val['height']);
+		
+		$form = '<p>'.form_label('Default Width', 'width').'<br >'.form_input('width', $this->settings['youtube_width'], 'style="width:100px;"').'</p>';
+		$form .= '<p>'.form_label('Default Height', 'height').'<br >'.form_input('height', $this->settings['youtube_height'], 'style="width:100px;"').'</p>';
 	
 		return $form;
 	}
@@ -27,17 +27,30 @@ class Youtube_ft extends EE_Fieldtype {
 		return array_merge($this->settings, $_POST);
 	}
 	
-	function display_settings() {		
-		$form = form_label('Width', 'width').NBS.form_input('width', $this->settings['width']).NBS.NBS.NBS.' ';
-		$form .= form_label('Height', 'height').NBS.form_input('height', $this->settings['height']);
+	function display_settings($data) {		
+		if(isset($data['youtube_width']) && isset($data['youtube_height'])) {
+			$_width = $data['youtube_width'];
+			$_height = $data['youtube_height'];
+		} else {
+			$_width = $this->settings['youtube_width'];
+			$_height = $this->settings['youtube_height'];
+		}
 		
-		return $form;
+		$this->EE->table->add_row(
+			lang('Width', 'width'),
+			form_input(array('id'=>'youtube_width', 'name'=>'youtube_width', 'size'=>4,'value'=>$_width))
+		);
+		
+		$this->EE->table->add_row(
+			lang('Height', 'height'),
+			form_input(array('id'=>'youtube_height', 'name'=>'youtube_height', 'size'=>4,'value'=>$_height))
+		);
 	}
 	
 	function save_settings($data) {
 		return array(
-			'width'		=> $this->EE->input->post('width'),
-			'height'	=> $this->EE->input->post('height')
+			'youtube_width'		=> $this->EE->input->post('youtube_width'),
+			'youtube_height'	=> $this->EE->input->post('youtube_height')
 		);
 	}
 	
@@ -45,8 +58,35 @@ class Youtube_ft extends EE_Fieldtype {
 		return form_input($this->field_name, $data);
 	}
 	
-	function replace_tag($data, $params = array(), $tagdata = FALSE) {
-		//template system hither
+	function replace_tag($data, $params = array(), $tagdata = false) {
+		//tagdata not working without an extension - see Pixel and Tonic's implementation of Matrix
+		/*
+		if($tagdata !== false) {
+			$return_data = array();
+			$return_data[] = array(
+				'embed_id' => $data,
+				'embed_width' => (isset($params['width'])) ? $params['width'] : $this->settings['youtube_width'],
+				'embed_height' => (isset($params['height'])) ? $params['height'] : $this->settings['youtube_height']
+			);
+			return $this->EE->TMPL->parse_variables($this->EE->TMPL->tagdata, $return_data);
+		}
+		*/
+		
+		if(empty($params)) {
+			return 'http://www.youtube.com/watch?v='.$data;
+		}
+		
+		if(isset($params['id_only']) && (strtolower($params['id_only']) == 'yes' || strtolower($params['id_only']) == 'true')) {
+			return $data;
+		}
+		
+		if(isset($params['embed']) && (strtolower($params['embed']) == 'yes' || strtolower($params['embed']) == 'true')) {
+			$_width = (isset($params['width'])) ? $params['width'] : $this->settings['youtube_width'];
+			$_height = (isset($params['height'])) ? $params['height'] : $this->settings['youtube_height'];
+			return '<object width="'.$_width.'" height="'.$_height.'><param name="movie" value="http://www.youtube.com/v/'.$data.'"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><embed src="http://www.youtube.com/v/'.$data.'" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="'.$_width.'" height="'.$_height.'"></embed></object>';
+		}
+		
+		return $data;
 	}
 	
 	function validate($data) {
@@ -54,6 +94,34 @@ class Youtube_ft extends EE_Fieldtype {
 	}
 	
 	function save($data) {
+		//We only want to save the youtube ID
+		//Get a URL from input entered
+		preg_match('@((https?://)?([-\w]+\.[-\w\.]+)+\w(:\d+)?(/([-\w/_\.]*(\?\S+)?)?)*)@', $data, $matches);
+		if(count($matches) > 0) {
+			$fixcount = strpos($matches[0], '"');
+			if($fixcount > 0) {
+				$url = substr($matches[0], 0, $fixcount);
+			} else {
+				$url = $matches[0];
+			}
+			
+			//Grab 'v' parameter from URL
+			$parsed = parse_url($url);
+			parse_str($parsed['query'], $parse_s);
+			
+			// '?v=VIDEOID' is present in URL
+			if(isset($parse_s['v'])) {
+				return $parse_s['v'];
+			}
+			
+			// '/v/VIDEOID' is present in URL
+			$parampos = strpos($url, '/v/');
+			$endpos = strpos($url, '?');
+			$video_id = substr($url, ($parampos+3), ($endpos - ($parampos+3)));
+			return $video_id;
+		}
+		
+		//If no match, assume they entered a valid youtube ID (better solution?)
 		return $data;
 	}
 	
