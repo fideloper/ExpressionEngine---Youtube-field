@@ -83,7 +83,12 @@ class Youtube_ft extends EE_Fieldtype {
 		if(isset($params['embed']) && (strtolower($params['embed']) == 'yes' || strtolower($params['embed']) == 'true')) {
 			$_width = (isset($params['width'])) ? $params['width'] : $this->settings['youtube_width'];
 			$_height = (isset($params['height'])) ? $params['height'] : $this->settings['youtube_height'];
+			/* Older Embed Code
 			return '<object width="'.$_width.'" height="'.$_height.'><param name="movie" value="http://www.youtube.com/v/'.$data.'"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><embed src="http://www.youtube.com/v/'.$data.'" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="'.$_width.'" height="'.$_height.'"></embed></object>';
+			*/
+			//Newer Embed Code
+			return '<iframe title="YouTube video player" width="'.$_width.'" height="'.$_height.'" src="http://www.youtube.com/embed/'.$data.'" frameborder="0" allowfullscreen></iframe>';
+			
 		}
 		
 		return $data;
@@ -107,18 +112,29 @@ class Youtube_ft extends EE_Fieldtype {
 			
 			//Grab 'v' parameter from URL
 			$parsed = parse_url($url);
-			parse_str($parsed['query'], $parse_s);
-			
-			// '?v=VIDEOID' is present in URL
-			if(isset($parse_s['v'])) {
-				return $parse_s['v'];
+			if(isset($parsed['query'])) {
+				parse_str($parsed['query'], $parse_s);
+				
+				// '?v=VIDEOID' is present in URL
+				if(isset($parse_s['v'])) {
+					return $parse_s['v'];
+				}
 			}
 			
 			// '/v/VIDEOID' is present in URL
 			$parampos = strpos($url, '/v/');
-			$endpos = strpos($url, '?');
-			$video_id = substr($url, ($parampos+3), ($endpos - ($parampos+3)));
-			return $video_id;
+			if($parampos > 0) {
+				$endpos = strpos($url, '?');
+				$video_id = substr($url, ($parampos+3), ($endpos - ($parampos+3)));
+				return $video_id;
+			}
+			
+			// '/embed/VIDEOID' is present in URL
+			$paramembedpos = strpos($url, '/embed/');
+			if($paramembedpos > 0) {
+				$embed_video_id = substr($url, ($paramembedpos+7), (strlen($url)-1));
+				return $embed_video_id;
+			}
 		}
 		
 		//If no match, assume they entered a valid youtube ID (better solution?)
