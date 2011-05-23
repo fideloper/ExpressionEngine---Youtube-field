@@ -4,7 +4,7 @@ class Youtube_ft extends EE_Fieldtype {
 	
 	var $info = array(
 		'name'		=> 'Youtube',
-		'version'	=> '1.0'
+		'version'	=> '1.1'
 	);
 	
 	function install() {
@@ -72,23 +72,25 @@ class Youtube_ft extends EE_Fieldtype {
 		}
 		*/
 		
-		if(empty($params)) {
+		if(empty($params) || !isset($params['display'])) {
 			return 'http://www.youtube.com/watch?v='.$data;
 		}
 		
-		if(isset($params['id_only']) && (strtolower($params['id_only']) == 'yes' || strtolower($params['id_only']) == 'true')) {
-			return $data;
-		}
 		
-		if(isset($params['embed']) && (strtolower($params['embed']) == 'yes' || strtolower($params['embed']) == 'true')) {
-			$_width = (isset($params['width'])) ? $params['width'] : $this->settings['youtube_width'];
-			$_height = (isset($params['height'])) ? $params['height'] : $this->settings['youtube_height'];
-			/* Older Embed Code
-			return '<object width="'.$_width.'" height="'.$_height.'><param name="movie" value="http://www.youtube.com/v/'.$data.'"></param><param name="allowFullScreen" value="true"></param><param name="allowscriptaccess" value="always"></param><embed src="http://www.youtube.com/v/'.$data.'" type="application/x-shockwave-flash" allowscriptaccess="always" allowfullscreen="true" width="'.$_width.'" height="'.$_height.'"></embed></object>';
-			*/
-			//Newer Embed Code
-			return '<iframe title="YouTube video player" width="'.$_width.'" height="'.$_height.'" src="http://www.youtube.com/embed/'.$data.'" frameborder="0" allowfullscreen></iframe>';
-			
+		switch(strtolower($params['display'])) {
+			case 'id':
+			case 'id_only':
+				return $data;
+				break;
+			case 'embed':
+				$_width = (isset($params['width'])) ? $params['width'] : $this->settings['youtube_width'];
+				$_height = (isset($params['height'])) ? $params['height'] : $this->settings['youtube_height'];
+				return '<iframe title="YouTube video player" width="'.$_width.'" height="'.$_height.'" src="http://www.youtube.com/embed/'.$data.'" frameborder="0" allowfullscreen></iframe>';
+				break;
+			case 'url':
+			default:
+				return 'http://www.youtube.com/watch?v='.$data;
+				break;
 		}
 		
 		return $data;
@@ -100,7 +102,7 @@ class Youtube_ft extends EE_Fieldtype {
 	
 	function save($data) {
 		//We only want to save the youtube ID
-		//Get a URL from input entered
+		//Get a URL from input entered (User might enter in iframe code, a standard url, a share url, etc)
 		preg_match('@((https?://)?([-\w]+\.[-\w\.]+)+\w(:\d+)?(/([-\w/_\.]*(\?\S+)?)?)*)@', $data, $matches);
 		if(count($matches) > 0) {
 			$fixcount = strpos($matches[0], '"');
@@ -110,30 +112,34 @@ class Youtube_ft extends EE_Fieldtype {
 				$url = $matches[0];
 			}
 			
-			//Grab 'v' parameter from URL
+			
 			$parsed = parse_url($url);
-			if(isset($parsed['query'])) {
+			
+			//youtu.be/VIDEOID is used:
+			if($parsed['host'] == 'youtu.be' && $parsed['path'] != '') {
+				return str_replace('/', '', $parsed['path']);
+				
+			//else Grab 'v' parameter from URL
+			} elseif(isset($parsed['query'])) {
 				parse_str($parsed['query'], $parse_s);
 				
 				// '?v=VIDEOID' is present in URL
 				if(isset($parse_s['v'])) {
 					return $parse_s['v'];
 				}
-			}
+			}			
 			
 			// '/v/VIDEOID' is present in URL
 			$parampos = strpos($url, '/v/');
 			if($parampos > 0) {
 				$endpos = strpos($url, '?');
-				$video_id = substr($url, ($parampos+3), ($endpos - ($parampos+3)));
-				return $video_id;
+				return substr($url, ($parampos+3), ($endpos - ($parampos+3)));
 			}
 			
 			// '/embed/VIDEOID' is present in URL
 			$paramembedpos = strpos($url, '/embed/');
 			if($paramembedpos > 0) {
-				$embed_video_id = substr($url, ($paramembedpos+7), (strlen($url)-1));
-				return $embed_video_id;
+				return substr($url, ($paramembedpos+7), (strlen($url)-1));
 			}
 		}
 		
