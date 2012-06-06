@@ -4,7 +4,7 @@ class Youtube_ft extends EE_Fieldtype {
 
 	var $info = array(
 		'name'		=> 'Youtube',
-		'version'	=> '1.1'
+		'version'	=> '1.2'
 	);
 
 	function install() {
