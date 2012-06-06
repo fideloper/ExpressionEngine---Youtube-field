@@ -72,10 +72,13 @@ class Youtube_ft extends EE_Fieldtype {
 		}
 		*/
 
-		if(empty($params) || !isset($params['display'])) {
-			return 'http://www.youtube.com/embed/'.$data;
-		}
+		// Look for url_params to add to the url, construct the full embed url.
+		$url_params = (isset($params['url_params'])) ? $params['url_params'] : false ;
+		$url = 'http://www.youtube.com/embed/'.$data.(($url_params !== false) ? '?'.$url_params : '' );
 
+		if(empty($params) || !isset($params['display'])) {
+			return $url;
+		}
 
 		switch(strtolower($params['display'])) {
 			case 'id':
@@ -85,11 +88,11 @@ class Youtube_ft extends EE_Fieldtype {
 			case 'embed':
 				$_width = (isset($params['width'])) ? $params['width'] : $this->settings['youtube_width'];
 				$_height = (isset($params['height'])) ? $params['height'] : $this->settings['youtube_height'];
-				return '<iframe title="YouTube video player" width="'.$_width.'" height="'.$_height.'" src="http://www.youtube.com/embed/'.$data.'" frameborder="0" allowfullscreen></iframe>';
+				return '<iframe title="YouTube video player" width="'.$_width.'" height="'.$_height.'" src="'.$url.'" frameborder="0" allowfullscreen></iframe>';
 				break;
 			case 'url':
 			default:
-				return 'http://www.youtube.com/embed/'.$data;
+				return $url;
 				break;
 		}
 
